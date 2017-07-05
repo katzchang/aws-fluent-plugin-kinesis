@@ -66,6 +66,8 @@ module FluentPluginKinesis
     config_param :use_yajl,               :bool,   default: false
     config_param :zlib_compression,       :bool,   default: false
 
+    config_param :failed_records_path,    :string, default: nil
+
     config_param :debug, :bool, default: false
 
     config_param :http_proxy, :string, default: nil
@@ -303,7 +305,13 @@ module FluentPluginKinesis
               record[:error_code],
               @dump_class.dump(record[:body])
             )
+            if @failed_records_path
+              File.open(path, "ab", @failed_records_path) do |f|
+                f.puts record
+              end
+            end
           }
+
         end
       end
     end

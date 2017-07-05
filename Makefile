@@ -21,6 +21,10 @@ all:
 test:
 	bundle exec rake test
 
+
+test-only:
+	bundle exec rake test $(file)
+
 install:
 	bundle exec rake install:local
 
