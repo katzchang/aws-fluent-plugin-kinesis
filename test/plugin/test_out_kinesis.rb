@@ -318,16 +318,8 @@ class KinesisOutputTest < Test::Unit::TestCase
     d.emit(data1, time)
     d.emit(data2, time)
 
-    d.expect_format({
-      'data' => data1.to_json,
-      'partition_key' => 'key1' }.to_msgpack
-    )
-    d.expect_format({
-      'data' => data2.to_json,
-      'partition_key' => 'key2' }.to_msgpack
-    )
-
     client = create_mock_client
+    puts client.methods
     client.describe_stream(stream_name: 'test_stream')
     client.put_records(
       stream_name: 'test_stream',
@@ -341,33 +333,7 @@ class KinesisOutputTest < Test::Unit::TestCase
           partition_key: 'key2'
         }
       ]
-      ) { {:failed_record_count => 2, :records => [{:error_code => "error code"}, {:error_code => "error code"}]      } }
-      client.put_records(
-        stream_name: 'test_stream',
-        records: [
-          {
-            data: data1.to_json,
-            partition_key: 'key1'
-          },
-          {
-            data: data2.to_json,
-            partition_key: 'key2'
-          }
-        ]
-        ) { {:failed_record_count => 2, :records => [{:error_code => "error code"}, {:error_code => "error code"}]      } }
-        client.put_records(
-          stream_name: 'test_stream',
-          records: [
-            {
-              data: data1.to_json,
-              partition_key: 'key1'
-            },
-            {
-              data: data2.to_json,
-              partition_key: 'key2'
-            }
-          ]
-          ) { {:failed_record_count => 2, :records => [{:error_code => "error code"}, {:error_code => "error code"}]      } }
+      ) { {:failed_record_count => 2, :records => [{:error_code => "error code"}, {:error_code => "error code"}]} }
 
     d.run
   end
