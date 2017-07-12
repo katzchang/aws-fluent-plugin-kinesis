@@ -306,8 +306,8 @@ module FluentPluginKinesis
               @dump_class.dump(record[:body])
             )
             if @failed_records_path
-              File.open(path, "ab", @failed_records_path) do |f|
-                f.puts record
+              File.open(@failed_records_path, "ab") do |f|
+                f.puts record[:body][:data]
               end
             end
           }
