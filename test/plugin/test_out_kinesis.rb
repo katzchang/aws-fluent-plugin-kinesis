@@ -275,7 +275,6 @@ class KinesisOutputTest < Test::Unit::TestCase
     end
   end
 
-
   data("json"=>CONFIG, "yajl"=>CONFIG_YAJL)
   def test_format_without_compression(config)
 
@@ -316,11 +315,58 @@ class KinesisOutputTest < Test::Unit::TestCase
     d.run
   end
 
-  # data("json"=>CONFIG_WITH_FAILED_RACORDS_PATH)
+  data("json"=>CONFIG, "yajl"=>CONFIG_YAJL)
+  def test_retry(config)
+
+    d = create_driver(config)
+
+    data1 = {"test_partition_key"=>"key1","a"=>1,"time"=>"2011-01-02T13:14:15Z","tag"=>"test"}
+    data2 = {"test_partition_key"=>"key2","a"=>2,"time"=>"2011-01-02T13:14:15Z","tag"=>"test"}
+
+    time = Time.parse("2011-01-02 13:14:15 UTC").to_i
+    d.emit(data1, time)
+    d.emit(data2, time)
+
+    d.expect_format({
+      'data' => data1.to_json,
+      'partition_key' => 'key1' }.to_msgpack
+    )
+    d.expect_format({
+      'data' => data2.to_json,
+      'partition_key' => 'key2' }.to_msgpack
+    )
+
+    client = create_mock_client
+    client.describe_stream(stream_name: 'test_stream')
+    client.put_records(
+      stream_name: 'test_stream',
+      records: [
+        {
+          data: data1.to_json,
+          partition_key: 'key1'
+        },
+        {
+          data: data2.to_json,
+          partition_key: 'key2'
+        }
+      ]
+      ).once { {:failed_record_count => 1, :records => [{:error_code => "error code"}, {:error_code => nil}]} }
+    client.put_records(
+        stream_name: 'test_stream',
+        records: [
+          {
+            data: data1.to_json,
+            partition_key: 'key1'
+          }
+      ]
+      ).times(3) { {:failed_record_count => 1, :records => [{:error_code => "error code"}]} }
+
+    d.run
+  end
+
   require "tempfile"
   def test_retry_and_store_failed_records_to_path()
     tf = Tempfile.new("test_retry_and_store_failed_records_to_path")
-    p tf.path
 
     config = CONFIG + %[
       retries_on_putrecords 3
