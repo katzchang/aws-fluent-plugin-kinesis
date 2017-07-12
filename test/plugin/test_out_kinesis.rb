@@ -43,11 +43,6 @@ class KinesisOutputTest < Test::Unit::TestCase
     zlib_compression true
   ]
 
-  CONFIG_WITH_FAILED_RACORDS_PATH = CONFIG + %[
-    retries_on_putrecords 3
-    failed_records_path ./.failed_records_path.log
-  ]
-
   def create_driver(conf = CONFIG, tag='test')
     Fluent::Test::BufferedOutputTestDriver
       .new(FluentPluginKinesis::OutputFilter, tag).configure(conf)
@@ -319,15 +314,19 @@ class KinesisOutputTest < Test::Unit::TestCase
     ) { {} }
 
     d.run
-
-    file = "./.failed_records_path.log"
-    file = File.open("./.failed_records_path.log", "rb")
-    contents = file.read
-    assert_equal(data1.to_json, contents)
   end
 
-  data("json"=>CONFIG_WITH_FAILED_RACORDS_PATH)
-  def test_retry_and_store_failed_records_to_path(config)
+  # data("json"=>CONFIG_WITH_FAILED_RACORDS_PATH)
+  require "tempfile"
+  def test_retry_and_store_failed_records_to_path()
+    tf = Tempfile.new("test_retry_and_store_failed_records_to_path")
+    p tf.path
+
+    config = CONFIG + %[
+      retries_on_putrecords 3
+      failed_records_path #{tf.path}
+    ]
+
     d = create_driver(config)
 
     data1 = {"test_partition_key"=>"key1","a"=>1,"time"=>"2011-01-02T13:14:15Z","tag"=>"test"}
@@ -363,6 +362,10 @@ class KinesisOutputTest < Test::Unit::TestCase
       ) { {:failed_record_count => 1, :records => [{:error_code => "error code"}]} }
 
     d.run
+
+    file = File.open(tf.path, "rb")
+    contents = file.read
+    assert_equal(data1.to_json + "\n", contents)
   end
 
 

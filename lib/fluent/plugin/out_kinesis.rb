@@ -306,7 +306,7 @@ module FluentPluginKinesis
               @dump_class.dump(record[:body])
             )
             if @failed_records_path
-              File.open(@failed_records_path, "ab") do |f|
+              File.open(@failed_records_path, "a:utf-8") do |f|
                 f.puts record[:body][:data]
               end
             end
