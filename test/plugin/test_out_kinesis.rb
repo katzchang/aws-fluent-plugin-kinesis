@@ -61,20 +61,6 @@ class KinesisOutputTest < Test::Unit::TestCase
     return client
   end
 
-  def create_stub_client
-    client = stub(Object.new)
-    require 'fluent_plugin_kinesis/version'
-    opts = {
-      user_agent_suffix: "fluent-plugin-kinesis-output-filter/#{FluentPluginKinesis::VERSION}",
-      region:            "us-east-1",
-      access_key_id:     "test_key_id",
-      secret_access_key: "test_sec_key",
-    }
-    stub(Aws::Kinesis::Client).new(opts) { client }
-    return client
-  end
-
-
   def test_configure
     d = create_driver
     assert_equal 'test_key_id', d.instance.aws_key_id
@@ -382,7 +368,7 @@ class KinesisOutputTest < Test::Unit::TestCase
     d.emit(data1, time)
     d.emit(data2, time)
 
-    client = create_stub_client
+    client = create_mock_client
     client.describe_stream(stream_name: 'test_stream')
     client.put_records(
       stream_name: 'test_stream',
@@ -396,7 +382,7 @@ class KinesisOutputTest < Test::Unit::TestCase
           partition_key: 'key2'
         }
       ]
-      ) { {:failed_record_count => 1, :records => [{:error_code => "error code"}, {:error_code => nil}]} }
+      ).once { {:failed_record_count => 1, :records => [{:error_code => "error code"}, {:error_code => nil}]} }
     client.put_records(
         stream_name: 'test_stream',
         records: [
@@ -405,7 +391,7 @@ class KinesisOutputTest < Test::Unit::TestCase
             partition_key: 'key1'
           }
       ]
-      ) { {:failed_record_count => 1, :records => [{:error_code => "error code"}]} }
+      ).times(3) { {:failed_record_count => 1, :records => [{:error_code => "error code"}]} }
 
     d.run
 
